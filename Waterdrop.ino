@@ -33,7 +33,7 @@ void setup() {
   Wire.write(8);  // (8dec -> 0000 1000 binary) Bit D3 High for measuring enable
   Wire.endTransmission();
   delay(10);
-  for (int x=0; x<numofdrops; x+=2){
+  for (int x=0; x<=numofdrops; x+=2){
     dropspos[x]=x;
   }
   u8g.nextPage();
@@ -71,8 +71,10 @@ void loop() {
 
 
   //Räknar ut pixel koordinat
-  dropspos[0] += xVel;
-  dropspos[1] += yVel;
+  for (int i=0; i<=numofdrops; i+=2){
+    dropspos[i] += xVel;
+    dropspos[i+1] += yVel;
+  }
 
   if (dropspos[0] < 0) {
     dropspos[0] = 0;
@@ -95,11 +97,14 @@ void loop() {
     yVel = 0;
   }
 
-  //ritar ut pixeln
+  //ritar ut droppar
   u8g.firstPage();
   do {
-    u8g.drawPixel(dropspos[0], dropspos[1]);
+    for (int i=0; i<=numofdrops; i+=2){
+      u8g.drawPixel(dropspos[i], dropspos[i+1]);
+    }
   } while (u8g.nextPage());
+
   delay(10);
 }
 
