@@ -6,18 +6,17 @@
 int ADXL345 = 0x53;  // The ADXL345 sensor I2C address
 
 float X_out, Y_out, Z_out;  // Outputs
-const int arrlength = 5;
-int oldestVal = 0;
-float xVals[arrlength];
-float yVals[arrlength];
-float zVals[arrlength];
+const int arrlength = 10;
+int oldestVal = 1;
+float xVals;
+float yVals;
 float xAcc;
 float yAcc;
 float xVel;
 float yVel;
 int xVal = 124 / 2;
 int yVal = 64 / 2;
-const float maxAcc = 100;
+const float maxAcc = 50;
 
 
 U8GLIB_SSD1306_128X64 u8g(U8G_I2C_OPT_NO_ACK);
@@ -49,71 +48,78 @@ void loop() {
   Y_out = Y_out / 256;
   Z_out = (Wire.read() | Wire.read() << 8);  // Z-axis value
   Z_out = Z_out / 256;
-  /*
-  Serial.print("Xa= ");
-  Serial.print(X_out);
-  Serial.print("   Ya= ");
-  Serial.print(Y_out);
-  *Serial.print("   Za= ");
-  Serial.println(Z_out);
-  */
 
   //Lägger in accelerometerns värden i en array
-  xVals[oldestVal] = X_out;
-  yVals[oldestVal] = Y_out;
+  xVals = X_out;
+  yVals = Y_out;
 
   oldestVal++;
   if (oldestVal == arrlength) {
     oldestVal = 0;
   }
-  delay(10);
 
   //mapar om medelvärdet av lutningens värde från accelerometern till acceleration i antal pixlar/sekund
-  xAcc = map(tilt_med(xVals)*100, -92, 108, -maxAcc, maxAcc);
-  yAcc = map(tilt_med(yVals)*100, -110, 90, maxAcc, -maxAcc);
+  xAcc = map(xVals * 100, -93, 107, -maxAcc, maxAcc);
+  yAcc = map(yVals * 100, -110, 90, maxAcc, -maxAcc);
 
   //Räknar ut pixel hastighet
-  xVel += xAcc/100;
-  yVel += yAcc/100;
+  xVel += xAcc / 100;
+  yVel += yAcc / 100;
+
+
+  //friktion för vattnet
+  xVel = friction(xVel);
+  yVel = friction(yVel);
+
 
   //Räknar ut pixel koordinat
   xVal += xVel;
-  yVal += xVel;
+  yVal += yVel;
 
-  Serial.println(tilt_med(xVals));
-  Serial.println(xAcc);
-  Serial.println(tilt_med(yVals));
-  Serial.println(yAcc);
-  /*
   if (xVal < 0) {
     xVal = 0;
-    xVel = 1;
+    xAcc = 0;
+    xVel = 0;
   }
   if (xVal > 123) {
     xVal = 123;
-    xVel = -1;
+    xAcc = 0;
+    xVel = 0;
   }
   if (yVal < 0) {
     yVal = 0;
-    yVel = 1;
+    yAcc = 0;
+    yVel = 0;
   }
   if (yVal > 63) {
     yVal = 63;
-    yVel = -1;
+    yAcc = 0;
+    yVel = 0;
   }
-  */
+
   //ritar ut pixeln
   u8g.firstPage();
   do {
     u8g.drawPixel(xVal, yVal);
   } while (u8g.nextPage());
+  delay(10);
 }
 
-float tilt_med(float Vals[]) {
-  float sum = 0;
-  for (int i = 0; i < arrlength; i++) {
-    sum += Vals[i];
+//skapar friktion för droppen
+float friction(float Vel) {
+  if (Vel < 0) {
+    Vel += 0.05;
+    if (Vel > 0) {
+      Vel = 0;
+    }
+  } else {
+    Vel -= 0.05;
+    if (Vel < 0) {
+      Vel = 0;
+    }
   }
-  float med = sum / arrlength;
-  return med;
+  return Vel;
+}
+
+int corner(){
 }
