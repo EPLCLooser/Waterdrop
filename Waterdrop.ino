@@ -6,17 +6,17 @@
 int ADXL345 = 0x53;  // The ADXL345 sensor I2C address
 
 float X_out, Y_out, Z_out;  // Outputs
-const int arrlength = 10;
+const int numofdrops = 1;
 int oldestVal = 1;
-float xVals;
-float yVals;
+float xincline;
+float yincline;
 float xAcc;
 float yAcc;
 float xVel;
 float yVel;
-int xVal = 124 / 2;
-int yVal = 64 / 2;
+int dropspos[numofdrops*2];
 const float maxAcc = 50;
+
 
 
 U8GLIB_SSD1306_128X64 u8g(U8G_I2C_OPT_NO_ACK);
@@ -33,6 +33,9 @@ void setup() {
   Wire.write(8);  // (8dec -> 0000 1000 binary) Bit D3 High for measuring enable
   Wire.endTransmission();
   delay(10);
+  for (int x=0; x<numofdrops; x+=2){
+    dropspos[x]=x;
+  }
   u8g.nextPage();
 }
 
@@ -50,17 +53,12 @@ void loop() {
   Z_out = Z_out / 256;
 
   //Lägger in accelerometerns värden i en array
-  xVals = X_out;
-  yVals = Y_out;
-
-  oldestVal++;
-  if (oldestVal == arrlength) {
-    oldestVal = 0;
-  }
+  xincline = X_out;
+  yincline = Y_out;
 
   //mapar om medelvärdet av lutningens värde från accelerometern till acceleration i antal pixlar/sekund
-  xAcc = map(xVals * 100, -93, 107, -maxAcc, maxAcc);
-  yAcc = map(yVals * 100, -110, 90, maxAcc, -maxAcc);
+  xAcc = map(xincline * 100, -93, 107, -maxAcc, maxAcc);
+  yAcc = map(yincline * 100, -110, 90, maxAcc, -maxAcc);
 
   //Räknar ut pixel hastighet
   xVel += xAcc / 100;
@@ -73,26 +71,26 @@ void loop() {
 
 
   //Räknar ut pixel koordinat
-  xVal += xVel;
-  yVal += yVel;
+  dropspos[0] += xVel;
+  dropspos[1] += yVel;
 
-  if (xVal < 0) {
-    xVal = 0;
+  if (dropspos[0] < 0) {
+    dropspos[0] = 0;
     xAcc = 0;
     xVel = 0;
   }
-  if (xVal > 123) {
-    xVal = 123;
+  if (dropspos[0] > 123) {
+    dropspos[0] = 123;
     xAcc = 0;
     xVel = 0;
   }
-  if (yVal < 0) {
-    yVal = 0;
+  if (dropspos[1] < 0) {
+    dropspos[1] = 0;
     yAcc = 0;
     yVel = 0;
   }
-  if (yVal > 63) {
-    yVal = 63;
+  if (dropspos[1] > 63) {
+    dropspos[1] = 63;
     yAcc = 0;
     yVel = 0;
   }
@@ -100,7 +98,7 @@ void loop() {
   //ritar ut pixeln
   u8g.firstPage();
   do {
-    u8g.drawPixel(xVal, yVal);
+    u8g.drawPixel(dropspos[0], dropspos[1]);
   } while (u8g.nextPage());
   delay(10);
 }
