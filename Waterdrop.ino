@@ -6,11 +6,12 @@
 int ADXL345 = 0x53;  // The ADXL345 sensor I2C address
 
 float X_out, Y_out, Z_out;  // Outputs
-const int numofdrops = 1;
+const int numofdrops = 25;
 int oldestVal = 1;
 float xincline;
 float yincline;
-int drops[numofdrops][6];  // [vilken droppe][x-position; y-position; x-acceleration; y-acceleration; x-velocity; y-velocity]
+float drops[numofdrops][6]; // [vilken droppe][x-position; y-position; x-acceleration; y-acceleration; x-velocity; y-velocity]
+
 const float maxAcc = 50;
 
 
@@ -61,6 +62,8 @@ void loop() {
     //Räknar ut pixel hastighet
     drops[i][4] += drops[i][2] / 100;
     drops[i][5] += drops[i][3] / 100;
+    Serial.println(drops[0][2]);
+    Serial.println(drops[0][3]);
 
     //friktion för vattnet
     drops[i][4] = friction(drops[i][4]);
@@ -88,20 +91,20 @@ void loop() {
       drops[i][3] = 0;
       drops[i][5] = 0;
     }
+
     
   }
 
   // kollar om någon droppe har samma position som någon annan och ändrar positionen
-  samepos(drops);
+  drops[numofdrops][6] = samepos(drops);
 
   //ritar ut droppar
   u8g.firstPage();
   do {
-    for (int i = 0; i < numofdrops; i += 2) {
-      u8g.drawPixel(drops[i], drops[i + 1]);
+    for (int i = 0; i < numofdrops; i++) {
+      u8g.drawPixel(drops[i][0], drops[i][1]);
     }
   } while (u8g.nextPage());
-  delay(10);
 }
 
 //skapar friktion för droppen
@@ -120,7 +123,7 @@ float friction(float Vel) {
   return Vel;
 }
 
-int samepos(int arr[numofdrops][6]) {
+int samepos(float arr[numofdrops][6]) {
   for (int i = 0; i < numofdrops; i++) {
     for (int u = 0; u < numofdrops; u += 1) {
       if (arr[u][0] == arr[i][0] && u != i) {
