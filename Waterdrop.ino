@@ -10,11 +10,7 @@ const int numofdrops = 1;
 int oldestVal = 1;
 float xincline;
 float yincline;
-float xAcc;
-float yAcc;
-float xVel;
-float yVel;
-int dropspos[numofdrops*2];
+int drops[numofdrops][6];  // [vilken droppe][x-position; y-position; x-acceleration; y-acceleration; x-velocity; y-velocity]
 const float maxAcc = 50;
 
 
@@ -33,10 +29,11 @@ void setup() {
   Wire.write(8);  // (8dec -> 0000 1000 binary) Bit D3 High for measuring enable
   Wire.endTransmission();
   delay(10);
-  for (int x=0; x<=numofdrops; x+=2){
-    dropspos[x]=x;
+  for (int x = 0; x < numofdrops; x++) {
+    drops[x][0] = x;
   }
   u8g.nextPage();
+  Serial.println(drops[0][0]);
 }
 
 void loop() {
@@ -57,54 +54,53 @@ void loop() {
   yincline = Y_out;
 
   //mapar om medelvärdet av lutningens värde från accelerometern till acceleration i antal pixlar/sekund
-  xAcc = map(xincline * 100, -93, 107, -maxAcc, maxAcc);
-  yAcc = map(yincline * 100, -110, 90, maxAcc, -maxAcc);
+  for (int i = 0; i < numofdrops; i++) {
+    drops[i][2] = map(xincline * 100, -93, 107, -maxAcc, maxAcc);
+    drops[i][3] = map(yincline * 100, -110, 90, maxAcc, -maxAcc);
 
-  //Räknar ut pixel hastighet
-  xVel += xAcc / 100;
-  yVel += yAcc / 100;
+    //Räknar ut pixel hastighet
+    drops[i][4] += drops[i][2] / 100;
+    drops[i][5] += drops[i][3] / 100;
 
+    //friktion för vattnet
+    drops[i][4] = friction(drops[i][4]);
+    drops[i][5] = friction(drops[i][5]);
 
-  //friktion för vattnet
-  xVel = friction(xVel);
-  yVel = friction(yVel);
+    //Räknar ut pixel koordinat
+    drops[i][0] += drops[i][4];
+    drops[i][1] += drops[i][5];
 
-
-  //Räknar ut pixel koordinat
-  for (int i=0; i<=numofdrops; i+=2){
-    dropspos[i] += xVel;
-    dropspos[i+1] += yVel;
+    if (drops[i][0] < 0) {
+      drops[i][0] = 0;
+      drops[i][2] = 0;
+      drops[i][4] = 0;
+    } else if (drops[i][0] > 123) {
+      drops[i][0] = 123;
+      drops[i][2] = 0;
+      drops[i][4] = 0;
+    }
+    if (drops[i][1] < 0) {
+      drops[i][1] = 0;
+      drops[i][3] = 0;
+      drops[i][5] = 0;
+    } else if (drops[i][1] > 63) {
+      drops[i][1] = 63;
+      drops[i][3] = 0;
+      drops[i][5] = 0;
+    }
+    
   }
 
-  if (dropspos[0] < 0) {
-    dropspos[0] = 0;
-    xAcc = 0;
-    xVel = 0;
-  }
-  if (dropspos[0] > 123) {
-    dropspos[0] = 123;
-    xAcc = 0;
-    xVel = 0;
-  }
-  if (dropspos[1] < 0) {
-    dropspos[1] = 0;
-    yAcc = 0;
-    yVel = 0;
-  }
-  if (dropspos[1] > 63) {
-    dropspos[1] = 63;
-    yAcc = 0;
-    yVel = 0;
-  }
+  // kollar om någon droppe har samma position som någon annan och ändrar positionen
+  samepos(drops);
 
   //ritar ut droppar
   u8g.firstPage();
   do {
-    for (int i=0; i<=numofdrops; i+=2){
-      u8g.drawPixel(dropspos[i], dropspos[i+1]);
+    for (int i = 0; i < numofdrops; i += 2) {
+      u8g.drawPixel(drops[i], drops[i + 1]);
     }
   } while (u8g.nextPage());
-
   delay(10);
 }
 
@@ -124,5 +120,30 @@ float friction(float Vel) {
   return Vel;
 }
 
-int corner(){
+int samepos(int arr[numofdrops][6]) {
+  for (int i = 0; i < numofdrops; i++) {
+    for (int u = 0; u < numofdrops; u += 1) {
+      if (arr[u][0] == arr[i][0] && u != i) {
+        if (arr[u][1] == arr[i][1]) {
+          if (arr[u][0] == 123) {
+            if (arr[u][1] <= 30) {
+              arr[u][1] += 1;
+            } else {
+              arr[u][1] -= 1;
+            }
+            arr[u][0] -= 1;
+          } else {
+            if (arr[u][1] <= 30) {
+              arr[u][1] += 1;
+            } else {
+              arr[u][1] -= 1;
+            }
+            arr[u][0] += 1;
+          }
+          i = 0;
+        }
+      }
+    }
+  }
+  return arr;
 }
